@@ -1,0 +1,48 @@
+﻿name: CD
+
+on:
+  push:
+    branches:
+      - 'release/dev'
+      - 'release/test'
+      - 'release/prod'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      KUBE_CONTEXT: minikube
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select env
+        id: envsel
+        shell: bash
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          if [[ "$BRANCH" == "dev" ]]; then
+            echo "ENV=dev" >> $GITHUB_OUTPUT
+            echo "NS=crop-dev" >> $GITHUB_OUTPUT
+            echo "DIR=k8s/dev" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "test" ]]; then
+            echo "ENV=test" >> $GITHUB_OUTPUT
+            echo "NS=crop-test" >> $GITHUB_OUTPUT
+            echo "DIR=k8s/test" >> $GITHUB_OUTPUT
+          else
+            echo "ENV=prod" >> $GITHUB_OUTPUT
+            echo "NS=crop-prod" >> $GITHUB_OUTPUT
+            echo "DIR=k8s/prod" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Kubectl version
+        run: kubectl version --client=true
+
+      - name: Ensure namespace
+        run: kubectl create namespace ${{ steps.envsel.outputs.NS }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply manifests
+        run: |
+          kubectl config use-context ${KUBE_CONTEXT}
+          kubectl -n ${{ steps.envsel.outputs.NS }} apply -f ${{ steps.envsel.outputs.DIR }}/namespace.yaml
+          kubectl -n ${{ steps.envsel.outputs.NS }} apply -f ${{ steps.envsel.outputs.DIR }}/deployment.yaml
+          kubectl -n ${{ steps.envsel.outputs.NS }} apply -f ${{ steps.envsel.outputs.DIR }}/service.yaml
