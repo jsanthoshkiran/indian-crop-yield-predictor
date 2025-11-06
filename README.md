@@ -1,4 +1,4 @@
-﻿# ðŸŒ¾ Indian Crop Yield Predictor
+﻿# Indian Crop Yield Predictor
 
 Local-first Streamlit app with Dev/Test/Prod via Docker + Minikube and CI/CD via GitHub Actions.
 
